@@ -15,6 +15,8 @@ cd my-app
 cargo run -p my-app
 ```
 
+![screenshot](docs/demo.png)
+
 ## Creating an App
 
 You'll need to have Rust and Cargo installed on your machine. You can install Rust through [rustup](https://rustup.rs/).
