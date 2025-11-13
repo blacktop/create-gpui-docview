@@ -6,6 +6,7 @@ members = [
     "crates/panels",
     "crates/modals",
     "crates/theme",
+    "crates/statusbar",
 ]
 resolver = "2"
 
