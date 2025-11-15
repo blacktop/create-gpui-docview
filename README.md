@@ -58,8 +58,13 @@ my-app
 │   ├── modals              # Modal components
 │   │   ├── Cargo.toml
 │   │   └── src
+│   │       ├── settings_modal.rs
 │   │       ├── picker.rs
 │   │       └── dialog.rs
+│   ├── statusbar           # Status bar component
+│   │   ├── Cargo.toml
+│   │   └── src
+│   │       └── lib.rs
 │   └── theme               # Theme and settings management
 │       ├── Cargo.toml
 │       └── src
@@ -91,10 +96,19 @@ A full-featured document-view workspace with:
 - **Pane system** - Pane, PaneGroup, and TabBar for document/tab management
 - **Docking system** - Dock component with Panel trait for sidebar/panel management
 - **Panel examples** - FileTree, Settings, and Terminal panel implementations
-- **Modal components** - Picker and Dialog modals for user interactions
+- **Modal components** - Settings modal (⌘,), Picker, and Dialog modals for user interactions
+- **Status bar** - Bottom status bar with file info and workspace indicators
 - **Theme management** - Theme system and settings model
+- **Menu system** - Native macOS menu bar with keyboard shortcuts
 
 All components follow GPUI best practices with Entity-based architecture and proper event handling.
+
+### Key Features
+
+- **Settings Modal** - Accessible via ⌘, (Cmd+Comma), provides a clean interface for app configuration
+- **Native Menus** - Fully integrated macOS menu bar with File, Edit, View menus and keyboard shortcuts
+- **Keyboard-driven** - Comprehensive keyboard shortcuts following macOS conventions
+- **Theme Support** - Built-in theme management system for customization
 
 ### Troubleshooting
 

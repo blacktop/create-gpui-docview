@@ -1,0 +1,14 @@
+[package]
+name = "gpui-docview-app"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+anyhow = { workspace = true }
+gpui = { workspace = true }
+theme = { path = "../theme" }
+pane = { path = "../pane" }
+docking = { path = "../docking" }
+panels = { path = "../panels" }
+modals = { path = "../modals" }
+statusbar = { path = "../statusbar" }

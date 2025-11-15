@@ -56,53 +56,40 @@ actions!(
     ]
 );
 
+fn register_global_actions(app: &mut App) {
+    app.on_action(|_: &ToggleSettings, app: &mut App| {
+        let Some(window) = app
+            .windows()
+            .into_iter()
+            .find_map(|handle| handle.downcast::<AppView>())
+        else {
+            return;
+        };
+
+        app.defer(move |app| {
+            let _ = window.update(app, |view, window, cx| {
+                let action = ToggleSettings;
+                view.on_toggle_settings(&action, window, cx);
+            });
+        });
+    });
+}
+
 fn main() {
     Application::new().run(|app: &mut App| {
-        // Bind keyboard shortcuts first so accelerators show up in the menus
-        app.bind_keys([
-            KeyBinding::new("cmd-q", Quit, None),
-            KeyBinding::new("cmd-n", NewFile, None),
-            KeyBinding::new("cmd-o", OpenFile, None),
-            KeyBinding::new("cmd-s", Save, None),
-            KeyBinding::new("cmd-shift-s", SaveAs, None),
-            KeyBinding::new("cmd-w", CloseTab, None),
-            KeyBinding::new("cmd-shift-w", CloseWindow, None),
-            KeyBinding::new("cmd-z", Undo, None),
-            KeyBinding::new("cmd-shift-z", Redo, None),
-            KeyBinding::new("cmd-x", Cut, None),
-            KeyBinding::new("cmd-c", Copy, None),
-            KeyBinding::new("cmd-v", Paste, None),
-            KeyBinding::new("cmd-f", Find, None),
-            KeyBinding::new("cmd-shift-f", Replace, None),
-            KeyBinding::new("cmd-=" , ZoomIn, None),
-            KeyBinding::new("cmd--", ZoomOut, None),
-            KeyBinding::new("cmd-0", ZoomReset, None),
-            KeyBinding::new("ctrl-cmd-f", ToggleFullscreen, None),
-            KeyBinding::new("cmd-b", ToggleSidebar, None),
-            KeyBinding::new("cmd-j", ToggleFooter, None),
-            KeyBinding::new("cmd-,", ToggleSettings, None),
-            KeyBinding::new("cmd-shift-n", NewWindow, None),
-            KeyBinding::new("cmd-m", Minimize, None),
-            KeyBinding::new("cmd-\\", SplitVertical, None),
-            KeyBinding::new("cmd-shift-\\", SplitHorizontal, None),
-        ]);
-
-        // Register action handlers
-        app.on_action(|_: &Quit, cx| cx.quit());
-
         // Set up native OS menus
         app.set_menus(vec![
-            // App menu (PROJECT_NAME)
+            // App menu (gpui-docview-app)
             Menu {
-                name: "PROJECT_NAME".into(),
+                name: "gpui-docview-app".into(),
                 items: vec![
-                    MenuItem::action("About PROJECT_NAME", About),
+                    MenuItem::action("About gpui-docview-app", About),
                     MenuItem::Separator,
                     MenuItem::action("Check for Updates...", CheckForUpdates),
                     MenuItem::Separator,
                     MenuItem::action("Settings...", ToggleSettings),
                     MenuItem::Separator,
-                    MenuItem::action("Quit PROJECT_NAME", Quit),
+                    MenuItem::action("Quit gpui-docview-app", Quit),
                 ],
             },
             // File menu
@@ -160,6 +147,37 @@ fn main() {
                 ],
             },
         ]);
+
+        // Bind keyboard shortcuts
+        app.bind_keys([
+            KeyBinding::new("cmd-q", Quit, None),
+            KeyBinding::new("cmd-n", NewFile, None),
+            KeyBinding::new("cmd-o", OpenFile, None),
+            KeyBinding::new("cmd-s", Save, None),
+            KeyBinding::new("cmd-shift-s", SaveAs, None),
+            KeyBinding::new("cmd-w", CloseTab, None),
+            KeyBinding::new("cmd-shift-w", CloseWindow, None),
+            KeyBinding::new("cmd-z", Undo, None),
+            KeyBinding::new("cmd-shift-z", Redo, None),
+            KeyBinding::new("cmd-x", Cut, None),
+            KeyBinding::new("cmd-c", Copy, None),
+            KeyBinding::new("cmd-v", Paste, None),
+            KeyBinding::new("cmd-f", Find, None),
+            KeyBinding::new("cmd-shift-f", Replace, None),
+            KeyBinding::new("cmd-=", ZoomIn, None),
+            KeyBinding::new("cmd--", ZoomOut, None),
+            KeyBinding::new("cmd-0", ZoomReset, None),
+            KeyBinding::new("ctrl-cmd-f", ToggleFullscreen, None),
+            KeyBinding::new("cmd-b", ToggleSidebar, None),
+            KeyBinding::new("cmd-j", ToggleFooter, None),
+            KeyBinding::new("cmd-,", ToggleSettings, None),
+            KeyBinding::new("cmd-shift-n", NewWindow, None),
+            KeyBinding::new("cmd-m", Minimize, None),
+            KeyBinding::new("cmd-\\", SplitVertical, None),
+            KeyBinding::new("cmd-shift-\\", SplitHorizontal, None),
+        ]);
+
+        register_global_actions(app);
 
         app.open_window(WindowOptions::default(), |_window, cx| {
             cx.new(|cx| AppView::new(cx))
@@ -277,6 +295,15 @@ impl AppView {
         cx.notify();
     }
     
+    fn on_close_window(&mut self, _: &CloseWindow, _window: &mut Window, cx: &mut Context<Self>) {
+        cx.quit();
+    }
+    
+    fn on_quit(&mut self, _: &Quit, _window: &mut Window, cx: &mut Context<Self>) {
+        cx.quit();
+    }
+
+
     fn sidebar(&self, cx: &mut Context<Self>) -> impl IntoElement {
         let colors = self.theme.colors();
         
@@ -598,6 +625,8 @@ impl Render for AppView {
             .on_action(cx.listener(Self::on_toggle_sidebar))
             .on_action(cx.listener(Self::on_toggle_footer))
             .on_action(cx.listener(Self::on_toggle_settings))
+            .on_action(cx.listener(Self::on_close_window))
+            .on_action(cx.listener(Self::on_quit))
             .on_mouse_move(cx.listener(Self::update_sidebar_drag))
             .on_mouse_up(MouseButton::Left, cx.listener(Self::finish_sidebar_drag))
             // Main content: HORIZONTAL LAYOUT (sidebar | document)

@@ -1,0 +1,9 @@
+[package]
+name = "panels"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+gpui = { workspace = true }
+docking = { path = "../docking" }
+theme = { path = "../theme" }
