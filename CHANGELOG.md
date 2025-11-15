@@ -1,3 +1,9 @@
+## What's Changed in 0.1.4
+* fix: theme picker template code by @blacktop
+* Update README.md by @blacktop
+
+**Full Changelog**: https://github.com/blacktop/create-gpui-docview/compare/v0.1.3...v0.1.4
+
 ## What's Changed in 0.1.3
 * fix: wire theme picker into settings by @blacktop
 * fix: Menu short-cuts by @blacktop
