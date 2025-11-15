@@ -59,17 +59,15 @@ actions!(
 fn register_global_actions(app: &mut App) {
     app.on_action(|_: &ToggleSettings, app: &mut App| {
         let Some(window) = app
-            .windows()
-            .into_iter()
-            .find_map(|handle| handle.downcast::<AppView>())
+            .active_window()
+            .and_then(|handle| handle.downcast::<AppView>())
         else {
             return;
         };
 
         app.defer(move |app| {
             let _ = window.update(app, |view, window, cx| {
-                let action = ToggleSettings;
-                view.on_toggle_settings(&action, window, cx);
+                view.on_toggle_settings(&ToggleSettings, window, cx);
             });
         });
     });
@@ -624,7 +622,6 @@ impl Render for AppView {
             .bg(colors.app_bg)
             .on_action(cx.listener(Self::on_toggle_sidebar))
             .on_action(cx.listener(Self::on_toggle_footer))
-            .on_action(cx.listener(Self::on_toggle_settings))
             .on_action(cx.listener(Self::on_close_window))
             .on_action(cx.listener(Self::on_quit))
             .on_mouse_move(cx.listener(Self::update_sidebar_drag))
