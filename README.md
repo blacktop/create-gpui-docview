@@ -98,17 +98,18 @@ A full-featured document-view workspace with:
 - **Panel examples** - FileTree, Settings, and Terminal panel implementations
 - **Modal components** - Settings modal (⌘,), Picker, and Dialog modals for user interactions
 - **Status bar** - Bottom status bar with file info and workspace indicators
-- **Theme management** - Theme system and settings model
+- **Theme system** - Live theme switching with 4 built-in themes (Dark, Light, High Contrast, Moonlight)
 - **Menu system** - Native macOS menu bar with keyboard shortcuts
 
 All components follow GPUI best practices with Entity-based architecture and proper event handling.
 
 ### Key Features
 
-- **Settings Modal** - Accessible via ⌘, (Cmd+Comma), provides a clean interface for app configuration
+- **Settings Modal** - Accessible via ⌘, (Cmd+Comma), provides a clean interface for app configuration and theme selection
+- **Live Theme Switching** - Choose from 4 beautiful themes with instant preview: Dark (purple accents), Light (clean whites), High Contrast (accessibility), and Moonlight (cyan accents). Switch themes on-the-fly from the Settings modal.
 - **Native Menus** - Fully integrated macOS menu bar with File, Edit, View menus and keyboard shortcuts
 - **Keyboard-driven** - Comprehensive keyboard shortcuts following macOS conventions
-- **Theme Support** - Built-in theme management system for customization
+- **Reactive Architecture** - Built with GPUI's Entity system for responsive theme updates across all components
 
 ### Troubleshooting
 
