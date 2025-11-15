@@ -40,7 +40,7 @@ fn copy_and_replace(
         let relative_path = entry.path().strip_prefix(source_dir.path()).unwrap();
         let mut entry_path = destination_path.to_owned().join(relative_path);
         match entry {
-            DirEntry::Dir(dir) => copy_and_replace(&mut entry_path, project_name, &dir)?,
+            DirEntry::Dir(dir) => copy_and_replace(&mut entry_path, project_name, dir)?,
             DirEntry::File(file) => {
                 if let Some(content) = file.contents_utf8() {
                     let mut content_string = content.to_string();

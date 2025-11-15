@@ -7,7 +7,6 @@ edition = "2021"
 license = "MIT"
 keywords = ["gpui", "zed", "scaffold", "template", "cli"]
 categories = ["command-line-utilities", "development-tools"]
-pre-release-hook = ["git", "cliff", "-o", "CHANGELOG.md", "--tag", "{{version}}" ]
 
 [[bin]]
 name = "create-gpui-docview"

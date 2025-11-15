@@ -2,6 +2,8 @@ TEST_APP := gpui-docview-test
 
 .PHONY: build
 build:
+	cargo fmt -- --check
+	cargo clippy --all-targets --all-features -- -D warnings
 	cargo build
 
 .PHONY: generate
@@ -16,10 +18,10 @@ check:
 	cd $(TEST_APP); cargo check -p $(TEST_APP)
 
 .PHONY: run
-run:
-	@if [ ! -d $(TEST_APP) ]; then \
-		$(MAKE) generate; \
-	fi
+run: generate
+# 	@if [ ! -d $(TEST_APP) ]; then \
+# 		$(MAKE) generate; \
+# 	fi
 	cd $(TEST_APP); cargo run -p $(TEST_APP)
 
 .PHONY: run-clean

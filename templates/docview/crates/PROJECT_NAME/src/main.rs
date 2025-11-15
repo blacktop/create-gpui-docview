@@ -1,8 +1,8 @@
 use gpui::{
-    actions, div, prelude::*, px, rems, uniform_list, App, Application, Axis, Context,
-    CursorStyle, Div, KeyBinding, ListSizingBehavior, Menu, MenuItem, MouseButton, MouseDownEvent,
-    MouseMoveEvent, MouseUpEvent, Render, ScrollHandle, SharedString, Styled, UniformListScrollHandle,
-    Window, WindowOptions,
+    actions, div, prelude::*, px, rems, uniform_list, App, Application, Context, CursorStyle, Div,
+    KeyBinding, ListSizingBehavior, Menu, MenuItem, MouseButton, MouseDownEvent, MouseMoveEvent,
+    MouseUpEvent, Render, ScrollHandle, SharedString, Styled, Subscription,
+    UniformListScrollHandle, Window, WindowOptions,
 };
 use modals::{SettingsModal, SettingsModalEvent};
 use pane::PaneGroup;
@@ -55,6 +55,25 @@ actions!(
         SplitHorizontal,
     ]
 );
+
+fn register_global_actions(app: &mut App) {
+    app.on_action(|_: &ToggleSettings, app: &mut App| {
+        let Some(window) = app
+            .windows()
+            .into_iter()
+            .find_map(|handle| handle.downcast::<AppView>())
+        else {
+            return;
+        };
+
+        app.defer(move |app| {
+            let _ = window.update(app, |view, window, cx| {
+                let action = ToggleSettings;
+                view.on_toggle_settings(&action, window, cx);
+            });
+        });
+    });
+}
 
 fn main() {
     Application::new().run(|app: &mut App| {
@@ -158,6 +177,8 @@ fn main() {
             KeyBinding::new("cmd-shift-\\", SplitHorizontal, None),
         ]);
 
+        register_global_actions(app);
+
         app.open_window(WindowOptions::default(), |_window, cx| {
             cx.new(|cx| AppView::new(cx))
         })
@@ -188,6 +209,7 @@ struct AppView {
     
     // Modal state
     settings_modal: Option<gpui::Entity<SettingsModal>>,
+    settings_modal_subscription: Option<Subscription>,
 }
 
 #[derive(Clone)]
@@ -230,6 +252,7 @@ impl AppView {
             sidebar_width,
             sidebar_drag: None,
             settings_modal: None,
+            settings_modal_subscription: None,
         }
     }
 
@@ -247,10 +270,27 @@ impl AppView {
     
     fn on_toggle_settings(&mut self, _: &ToggleSettings, _window: &mut Window, cx: &mut Context<Self>) {
         if self.settings_modal.is_some() {
+            // Close modal
             self.settings_modal = None;
+            self.settings_modal_subscription = None;
         } else {
+            // Open modal
             let modal = cx.new(|cx| SettingsModal::new(self.theme.clone(), cx));
+
+            // Subscribe to modal events
+            let subscription = cx.subscribe(
+                &modal,
+                |this, _modal, event: &SettingsModalEvent, cx| match event {
+                    SettingsModalEvent::Close => {
+                        this.settings_modal = None;
+                        this.settings_modal_subscription = None;
+                        cx.notify();
+                    }
+                },
+            );
+
             self.settings_modal = Some(modal);
+            self.settings_modal_subscription = Some(subscription);
         }
         cx.notify();
     }
@@ -578,19 +618,6 @@ impl Render for AppView {
     fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let colors = self.theme.colors();
 
-        // Subscribe to settings modal events
-        if let Some(modal) = &self.settings_modal {
-            cx.subscribe(
-                modal,
-                |this, _modal, event: &SettingsModalEvent, cx| match event {
-                    SettingsModalEvent::Close => {
-                        this.settings_modal = None;
-                        cx.notify();
-                    }
-                },
-            );
-        }
-        
         // Root: vertical layout (main content | status)
         v_flex()
             .size_full()
@@ -695,4 +722,3 @@ fn read_file_lines(path: &Path) -> Vec<SharedString> {
         Err(_) => vec!["(binary or unreadable file)".into()],
     }
 }
-
