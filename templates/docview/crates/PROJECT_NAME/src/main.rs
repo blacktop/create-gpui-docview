@@ -1,6 +1,6 @@
 use gpui::{
     actions, div, prelude::*, px, rems, uniform_list, Action, App, Application, Context,
-    CursorStyle, Div, Focusable, KeyBinding, KeyContext, ListSizingBehavior, Menu, MenuItem, MouseButton,
+    CursorStyle, Div, Focusable, FocusHandle, KeyBinding, KeyContext, ListSizingBehavior, Menu, MenuItem, MouseButton,
     MouseDownEvent, MouseMoveEvent, MouseUpEvent, Render, ScrollHandle, SharedString, Styled,
     Subscription, UniformListScrollHandle, Window, WindowOptions,
 };
@@ -191,6 +191,7 @@ where
 }
 
 struct AppView {
+    focus_handle: FocusHandle,
     theme_manager: gpui::Entity<ThemeManager>,
     theme: WorkspaceTheme,
     theme_subscription: Option<Subscription>,
@@ -264,6 +265,7 @@ impl AppView {
         }));
 
         Self {
+            focus_handle: cx.focus_handle(),
             theme_manager,
             theme,
             theme_subscription,
@@ -638,9 +640,20 @@ impl AppView {
     }
 }
 
+impl Focusable for AppView {
+    fn focus_handle(&self, _cx: &App) -> FocusHandle {
+        self.focus_handle.clone()
+    }
+}
+
 impl Render for AppView {
-    fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+    fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let colors = self.theme.colors();
+
+        // Ensure AppView has focus to receive actions
+        if !self.focus_handle.is_focused(window) {
+            self.focus_handle.focus(window);
+        }
 
         // Set up key context for action routing
         let mut key_context = KeyContext::new_with_defaults();
@@ -649,6 +662,7 @@ impl Render for AppView {
         // Root: vertical layout (main content | status)
         v_flex()
             .key_context(key_context)
+            .track_focus(&self.focus_handle)
             .size_full()
             .bg(colors.app_bg)
             .on_action(cx.listener(Self::on_toggle_sidebar))
