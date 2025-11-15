@@ -26,6 +26,10 @@ impl StatusBar {
         }
     }
 
+    pub fn update_theme(&mut self, theme: WorkspaceTheme) {
+        self.theme = theme;
+    }
+
     pub fn set_file(&mut self, path: Option<SharedString>, file_type: Option<SharedString>) {
         self.file_path = path;
         self.file_type = file_type;

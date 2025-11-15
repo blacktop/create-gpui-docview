@@ -1,13 +1,15 @@
 use gpui::{
-    div, prelude::*, px, rems, App, Context, CursorStyle, Div, EventEmitter, FocusHandle,
-    Focusable, MouseButton, MouseDownEvent, Render, ScrollWheelEvent, Window,
+    div, prelude::*, px, rems, App, Context, CursorStyle, Div, Entity, EventEmitter, FocusHandle,
+    Focusable, MouseButton, MouseDownEvent, Render, ScrollWheelEvent, Subscription, Window,
 };
-use theme::WorkspaceTheme;
+use theme::{ThemeChangedEvent, ThemeManager, ThemeMode, WorkspaceTheme};
 
 pub struct SettingsModal {
+    theme_manager: Entity<ThemeManager>,
     theme: WorkspaceTheme,
     focus: FocusHandle,
     toggles: Vec<SettingToggle>,
+    theme_subscription: Option<Subscription>,
 }
 
 #[derive(Clone)]
@@ -18,10 +20,20 @@ struct SettingToggle {
 }
 
 impl SettingsModal {
-    pub fn new(theme: WorkspaceTheme, cx: &mut App) -> Self {
+    pub fn new(theme_manager: Entity<ThemeManager>, cx: &mut Context<Self>) -> Self {
+        let theme = theme_manager.read(cx).current().clone();
+
+        // Subscribe to theme changes
+        let theme_subscription = Some(cx.subscribe(&theme_manager, |this, _, _: &ThemeChangedEvent, cx| {
+            this.theme = this.theme_manager.read(cx).current().clone();
+            cx.notify();
+        }));
+
         Self {
+            theme_manager,
             theme,
             focus: cx.focus_handle(),
+            theme_subscription,
             toggles: vec![
                 SettingToggle {
                     label: "Auto Format",
@@ -80,6 +92,100 @@ impl SettingsModal {
                     .ml(thumb_offset)
                     .mt(px(2.0)),
             )
+    }
+
+    fn theme_selector(&self, cx: &mut Context<Self>) -> Div {
+        let colors = self.theme.colors();
+        let current_mode = self.theme_manager.read(cx).current_mode();
+        let available_modes = self.theme_manager.read(cx).available_modes().to_vec();
+
+        div()
+            .flex_col()
+            .gap(self.theme.gutter())
+            .child(
+                div()
+                    .text_sm()
+                    .text_color(colors.text_muted)
+                    .child("THEME"),
+            )
+            .children(available_modes.into_iter().map(|mode| {
+                let is_selected = current_mode == mode;
+                let theme_manager = self.theme_manager.clone();
+
+                div()
+                    .flex_row()
+                    .items_center()
+                    .gap(self.theme.gutter())
+                    .w_full()
+                    .bg(if is_selected {
+                        colors.editor_bg
+                    } else {
+                        colors.panel_bg
+                    })
+                    .border_1()
+                    .border_color(if is_selected {
+                        colors.accent
+                    } else {
+                        colors.border_soft
+                    })
+                    .rounded(px(10.0))
+                    .p(self.theme.gutter())
+                    .cursor(CursorStyle::PointingHand)
+                    .hover(|style| {
+                        style.bg(colors.editor_bg)
+                    })
+                    .on_mouse_down(MouseButton::Left, cx.listener(move |_this, _: &MouseDownEvent, _, cx| {
+                        theme_manager.update(cx, |manager, cx| {
+                            manager.set_mode(mode, cx);
+                        });
+                        cx.stop_propagation();
+                    }))
+                    .child(
+                        // Radio button indicator
+                        div()
+                            .size(px(16.0))
+                            .rounded_full()
+                            .border_2()
+                            .border_color(if is_selected {
+                                colors.accent
+                            } else {
+                                colors.border_strong
+                            })
+                            .when(is_selected, |this| {
+                                this.child(
+                                    div()
+                                        .size(px(8.0))
+                                        .rounded_full()
+                                        .bg(colors.accent)
+                                        .mt(px(2.0))
+                                        .ml(px(2.0)),
+                                )
+                            }),
+                    )
+                    .child(
+                        div()
+                            .flex_1()
+                            .flex_col()
+                            .gap(rems(0.2))
+                            .child(
+                                div()
+                                    .text_sm()
+                                    .text_color(colors.text_primary)
+                                    .child(mode.to_string()),
+                            )
+                            .child(
+                                div()
+                                    .text_xs()
+                                    .text_color(colors.text_muted)
+                                    .child(match mode {
+                                        ThemeMode::Dark => "Dark theme with purple accents",
+                                        ThemeMode::Light => "Light theme with clean backgrounds",
+                                        ThemeMode::HighContrast => "High contrast for accessibility",
+                                        ThemeMode::Moonlight => "Cool moonlight theme with cyan accents",
+                                    }),
+                            ),
+                    )
+            }))
     }
 }
 
@@ -189,6 +295,11 @@ impl Render for SettingsModal {
                                     .flex_col()
                                     .gap(self.theme.gutter())
                                     .p(self.theme.gutter())
+                                    // Theme selector section
+                                    .child(self.theme_selector(cx))
+                                    // Spacer
+                                    .child(div().h(rems(0.5)))
+                                    // Preferences section
                                     .child(
                                         div()
                                             .text_sm()

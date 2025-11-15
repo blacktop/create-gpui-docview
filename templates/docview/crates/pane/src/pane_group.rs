@@ -78,6 +78,10 @@ impl PaneGroup {
         }
     }
 
+    pub fn update_theme(&mut self, theme: WorkspaceTheme) {
+        self.theme = theme;
+    }
+
     fn render_tabs(&mut self, cx: &mut Context<Self>) -> Div {
         let colors = self.theme.colors();
         let mut track = div()

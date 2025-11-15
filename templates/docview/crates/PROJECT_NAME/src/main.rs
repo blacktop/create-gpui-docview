@@ -1,8 +1,8 @@
 use gpui::{
-    actions, div, prelude::*, px, rems, uniform_list, App, Application, Context, CursorStyle, Div,
-    KeyBinding, ListSizingBehavior, Menu, MenuItem, MouseButton, MouseDownEvent, MouseMoveEvent,
-    MouseUpEvent, Render, ScrollHandle, SharedString, Styled, Subscription,
-    UniformListScrollHandle, Window, WindowOptions,
+    actions, div, prelude::*, px, rems, uniform_list, Action, App, Application, Context,
+    CursorStyle, Div, Focusable, KeyBinding, KeyContext, ListSizingBehavior, Menu, MenuItem, MouseButton,
+    MouseDownEvent, MouseMoveEvent, MouseUpEvent, Render, ScrollHandle, SharedString, Styled,
+    Subscription, UniformListScrollHandle, Window, WindowOptions,
 };
 use modals::{SettingsModal, SettingsModalEvent};
 use pane::PaneGroup;
@@ -11,7 +11,7 @@ use std::{
     fs,
     path::{Path, PathBuf},
 };
-use theme::{ThemeManager, WorkspaceTheme};
+use theme::{ThemeChangedEvent, ThemeManager, WorkspaceTheme};
 
 // Helper functions for flex layouts
 fn h_flex() -> Div {
@@ -89,6 +89,11 @@ fn main() {
 
         // Register action handlers
         app.on_action(|_: &Quit, cx| cx.quit());
+
+        // Forward settings/visibility toggles from menus and keyboard shortcuts
+        app.on_action(|action: &ToggleSettings, cx| dispatch_to_window(action, cx));
+        app.on_action(|action: &ToggleSidebar, cx| dispatch_to_window(action, cx));
+        app.on_action(|action: &ToggleFooter, cx| dispatch_to_window(action, cx));
 
         // Set up native OS menus
         app.set_menus(vec![
@@ -168,27 +173,46 @@ fn main() {
     });
 }
 
+fn dispatch_to_window<A>(action: &A, app: &mut App)
+where
+    A: Action + Clone + 'static,
+{
+    let Some(window) = app
+        .active_window()
+        .or_else(|| app.windows().into_iter().next())
+    else {
+        return;
+    };
+
+    let action = action.clone();
+    let _ = window.update(app, move |_, window, cx| {
+        window.dispatch_action(Box::new(action.clone()), cx);
+    });
+}
+
 struct AppView {
+    theme_manager: gpui::Entity<ThemeManager>,
     theme: WorkspaceTheme,
+    theme_subscription: Option<Subscription>,
     status_bar: gpui::Entity<StatusBar>,
     pane_group: gpui::Entity<PaneGroup>,
-    
+
     // File tree state
     root: PathBuf,
     tree: Vec<FsNode>,
     selected_path: Option<PathBuf>,
     content_lines: Vec<SharedString>,
-    
+
     // Scroll handles
     sidebar_scroll: ScrollHandle,
     editor_scroll: UniformListScrollHandle,
-    
+
     // Layout state
     sidebar_visible: bool,
     footer_visible: bool,
     sidebar_width: f32,
     sidebar_drag: Option<SidebarDrag>,
-    
+
     // Modal state
     settings_modal: Option<gpui::Entity<SettingsModal>>,
     settings_modal_subscription: Option<Subscription>,
@@ -210,17 +234,39 @@ struct SidebarDrag {
 }
 
 impl AppView {
-    fn new(cx: &mut App) -> Self {
-        let theme = ThemeManager::dark().current().clone();
+    fn new(cx: &mut Context<Self>) -> Self {
+        // Create the theme manager
+        let theme_manager = ThemeManager::new(cx);
+        let theme = theme_manager.read(cx).current().clone();
+
         let root = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
         let tree = read_dir_nodes(&root);
         let sidebar_width = f32::from(theme.sidebar_width());
-        
+
         let status_bar = cx.new(|_cx| StatusBar::new(theme.clone()));
         let pane_group = cx.new(|cx| PaneGroup::new(theme.clone(), cx));
-        
+
+        // Subscribe to theme changes
+        let theme_subscription = Some(cx.subscribe(&theme_manager, |this, _, _: &ThemeChangedEvent, cx| {
+            // Update our local theme copy
+            this.theme = this.theme_manager.read(cx).current().clone();
+
+            // Update all child components with the new theme
+            this.status_bar.update(cx, |status_bar, _cx| {
+                status_bar.update_theme(this.theme.clone());
+            });
+
+            this.pane_group.update(cx, |pane_group, _cx| {
+                pane_group.update_theme(this.theme.clone());
+            });
+
+            cx.notify();
+        }));
+
         Self {
+            theme_manager,
             theme,
+            theme_subscription,
             status_bar,
             pane_group,
             root,
@@ -250,14 +296,19 @@ impl AppView {
         cx.notify();
     }
     
-    fn on_toggle_settings(&mut self, _: &ToggleSettings, _window: &mut Window, cx: &mut Context<Self>) {
+    fn on_toggle_settings(&mut self, _: &ToggleSettings, window: &mut Window, cx: &mut Context<Self>) {
         if self.settings_modal.is_some() {
             // Close modal
             self.settings_modal = None;
             self.settings_modal_subscription = None;
         } else {
-            // Open modal
-            let modal = cx.new(|cx| SettingsModal::new(self.theme.clone(), cx));
+            // Open modal with the theme manager
+            let modal = cx.new(|cx| SettingsModal::new(self.theme_manager.clone(), cx));
+
+            // Focus the modal so it can capture keyboard events
+            modal.update(cx, |modal, cx| {
+                modal.focus_handle(cx).focus(window);
+            });
 
             // Subscribe to modal events
             let subscription = cx.subscribe(
@@ -591,8 +642,13 @@ impl Render for AppView {
     fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let colors = self.theme.colors();
 
+        // Set up key context for action routing
+        let mut key_context = KeyContext::new_with_defaults();
+        key_context.add("AppView");
+
         // Root: vertical layout (main content | status)
         v_flex()
+            .key_context(key_context)
             .size_full()
             .bg(colors.app_bg)
             .on_action(cx.listener(Self::on_toggle_sidebar))
